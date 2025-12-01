@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur BPMN XML</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #xml-editor {
+            width: 100%;
+            height: 400px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+            flex: 1;
+        }
+
+        #xml-editor:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: #48bb78;
+        }
+
+        button.secondary:hover {
+            background: #38a169;
+            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+        }
+
+        button.danger {
+            background: #f56565;
+        }
+
+        button.danger:hover {
+            background: #e53e3e;
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+
+        .output-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        #xml-output {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .elements-list {
+            margin-top: 20px;
+        }
+
+        .element-item {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .element-type {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .validation-result {
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .valid {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .invalid {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .toggle-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .code-block {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .element-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .badge-task {
+            background: #4299e1;
+            color: white;
+        }
+
+        .badge-event {
+            background: #48bb78;
+            color: white;
+        }
+
+        .badge-gateway {
+            background: #ed8936;
+            color: white;
+        }
+
+        .badge-flow {
+            background: #9f7aea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔄 Éditeur BPMN XML</h1>
+            <p class="subtitle">Visualisez et éditez vos processus BPMN en XML</p>
+        </header>
+
+        <div class="main-content">
+            <div class="panel">
+                <div class="editor-container">
+                    <h2>📝 Éditeur XML</h2>
+                    <textarea id="xml-editor" placeholder="Collez votre code XML BPMN ici...">
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions>
+  <process id="GestionProjet" name="Processus Gestion de Projet">
+    
+    <!-- Lanes -->
+    <laneSet>
+      <lane id="chef_projet" name="Chef de projet">
+        <flowNodeRef>startEvent1</flowNodeRef>
+        <flowNodeRef>verifierRessources</flowNodeRef>
+        <!-- ... autres nœuds du chef -->
+      </lane>
+      <lane id="equipe_projet" name="Équipe projet">
+        <flowNodeRef>developperPlans</flowNodeRef>
+        <!-- ... autres nœuds de l'équipe -->
+      </lane>
+    </laneSet>
+    
+    <!-- Événements -->
+    <startEvent id="startEvent1" name="Nouvelle demande">
+      <outgoing>flow1</outgoing>
+    </startEvent>
+    
+    <!-- Tâches -->
+    <task id="verifierRessources" name="Vérifier disponibilité ressources">
+      <incoming>flow1</incoming>
+      <outgoing>flow2</outgoing>
+    </task>
+    
+    <!-- Passerelles -->
+    <exclusiveGateway id="gateway1" name="Ressources disponibles ?">
+      <incoming>flow2</incoming>
+      <outgoing>flowOui</outgoing>
+      <outgoing>flowNon</outgoing>
+    </exclusiveGateway>
+    
+    <!-- Flux -->
+    <sequenceFlow id="flow1" sourceRef="startEvent1" targetRef="verifierRessources"/>
+    <sequenceFlow id="flow2" sourceRef="verifierRessources" targetRef="gateway1"/>
+    <!-- ... autres flux -->
+    
+  </process>
+</definitions></textarea>
+                    
+                    <div class="buttons">
+                        <button onclick="validateXML()">
+                            <span>✅</span> Valider XML
+                        </button>
+                        <button onclick="formatXML()">
+                            <span>✨</span> Formater
+                        </button>
+                        <button onclick="saveToFile()">
+                            <span>💾</span> Sauvegarder
+                        </button>
+                        <button onclick="loadFromFile()">
+                            <span>📂</span> Charger fichier
+                        </button>
+                        <button class="secondary" onclick="showSample('complete')">
+                            <span>📋</span> Exemple complet
+                        </button>
+                        <button class="danger" onclick="clearEditor()">
+                            <span>🗑️</span> Effacer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="toggle-buttons">
+                    <div class="toggle-btn active" onclick="showOutput('preview')">Vue XML</div>
+                    <div class="toggle-btn" onclick="showOutput('elements')">Éléments</div>
+                    <div class="toggle-btn" onclick="showOutput('stats')">Statistiques</div>
+                </div>
+
+                <div class="output-container">
+                    <div id="preview-output" class="output-section">
+                        <h2>👁️ Aperçu XML</h2>
+                        <pre id="xml-output"></pre>
+                    </div>
+
+                    <div id="elements-output" class="output-section" style="display: none;">
+                        <h2>🧩 Éléments détectés</h2>
+                        <div id="elements-list" class="elements-list">
+                            <!-- Les éléments seront générés ici -->
+                        </div>
+                    </div>
+
+                    <div id="stats-output" class="output-section" style="display: none;">
+                        <h2>📊 Statistiques</h2>
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-label">Tâches</div>
+                                <div class="stat-value" id="stat-tasks">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Événements</div>
+                                <div class="stat-value" id="stat-events">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Passerelles</div>
+                                <div class="stat-value" id="stat-gateways">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Flux</div>
+                                <div class="stat-value" id="stat-flows">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="validation-result" class="validation-result"></div>
+            </div>
+        </div>
+
+        <div class="modal" id="sample-modal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeModal()">×</span>
+                <h2>📋 Exemples BPMN</h2>
+                <div class="form-group">
+                    <label>Sélectionner un exemple :</label>
+                    <select id="sample-select" onchange="loadSample()">
+                        <option value="basic">Processus de base</option>
+                        <option value="complete">Processus complet</option>
+                        <option value="approval">Processus d'approbation</option>
+                        <option value="purchase">Processus d'achat</option>
+                    </select>
+                </div>
+                <div id="sample-content" class="code-block"></div>
+                <button onclick="insertSample()" style="width: 100%;">Insérer cet exemple</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Éditeur BPMN XML v1.0 | Compatible avec BPMN 2.0 | Génère des fichiers .bpmn</p>
+    </footer>
+
+    <script>
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            formatXML();
+            updateStats();
+        });
+
+        // Fonctions principales
+        function validateXML() {
+            const xmlText = document.getElementById('xml-editor').value;
+            const validationResult = document.getElementById('validation-result');
+            
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
+                
+                if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+                    validationResult.className = 'validation-result invalid';
+                    validationResult.innerHTML = '❌ XML invalide : ' + 
+                        xmlDoc.getElementsByTagName('parsererror')[0].textContent;
+                } else {
+                    validationResult.className = 'validation-result valid';
+                    validationResult.innerHTML = '✅ XML valide !';
+                    
+                    // Mettre à jour l'aperçu
+                    updatePreview();
+                    updateElements();
+                    updateStats();
+                }
+            } catch (e) {
+                validationResult.className = 'validation-result invalid';
+                validationResult.innerHTML = '❌ Erreur : ' + e.message;
+            }
+        }
+
+        function formatXML() {
+            const xmlText = document.getElementById('xml-editor').value;
+            let formatted = '';
+            let indent = '';
+            const tab = '  ';
+            
+            xmlText.split(/>\s*</).forEach(function(node) {
+                if (node.match(/^\/\w/)) {
+                    indent = indent.substring(tab.length);
+                }
+                
+                formatted += indent + '<' + node + '>\r\n';
+                
+                if (node.match(/^<?\w[^>]*[^\/]$/) && !node.startsWith('!--')) {
+                    indent += tab;
+                }
+            });
+            
+            formatted = formatted.substring(1, formatted.length - 1);
+            document.getElementById('xml-editor').value = formatted;
+            updatePreview();
+            updateStats();
+        }
+
+        function updatePreview() {
+            const xmlText = document.getElementById('xml-editor').value;
+            document.getElementById('xml-output').textContent = xmlText;
+        }
+
+        function updateElements() {
+            const xmlText = document.getElementById('xml-editor').value;
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
+            
+            const elementsList = document.getElementById('elements-list');
+            elementsList.innerHTML = '';
+            
+            // Rechercher tous les types d'éléments
+            const elementTypes = [
+                { tag: 'task', name: 'Tâches', class: 'badge-task' },
+                { tag: 'startEvent|endEvent|intermediateCatchEvent|intermediateThrowEvent', name: 'Événements', class: 'badge-event' },
+                { tag: 'exclusiveGateway|parallelGateway|inclusiveGateway|eventBasedGateway', name: 'Passerelles', class: 'badge-gateway' },
+                { tag: 'sequenceFlow|messageFlow', name: 'Flux', class: 'badge-flow' },
+                { tag: 'lane|laneSet', name: 'Couloirs', class: 'badge-task' },
+                { tag: 'process', name: 'Processus', class: 'badge-gateway' }
+            ];
+            
+            elementTypes.forEach(type => {
+                const regex = new RegExp(type.tag, 'i');
+                const elements = xmlDoc.getElementsByTagName('*');
+                
+                Array.from(elements).forEach(element => {
+                    if (regex.test(element.tagName)) {
+                        const id = element.getAttribute('id') || element.getAttribute('name') || 'sans-id';
+                        const name = element.getAttribute('name') || '';
+                        
+                        const elementDiv = document.createElement('div');
+                        elementDiv.className = 'element-item';
+                        elementDiv.innerHTML = `
+                            <div>
+                                <strong>${id}</strong>
+                                ${name ? '<br><small>' + name + '</small>' : ''}
+                            </div>
+                            <span class="element-badge ${type.class}">${type.name}</span>
+                        `;
+                        elementsList.appendChild(elementDiv);
+                    }
+                });
+            });
+        }
+
+        function updateStats() {
+            const xmlText = document.getElementById('xml-editor').value;
+            
+            // Compter les éléments
+            const tasks = (xmlText.match(/<task/g) || []).length;
+            const events = (xmlText.match(/<.*Event/g) || []).length;
+            const gateways = (xmlText.match(/<.*Gateway/g) || []).length;
+            const flows = (xmlText.match(/<.*Flow/g) || []).length;
+            
+            document.getElementById('stat-tasks').textContent = tasks;
+            document.getElementById('stat-events').textContent = events;
+            document.getElementById('stat-gateways').textContent = gateways;
+            document.getElementById('stat-flows').textContent = flows;
+        }
+
+        function saveToFile() {
+            const xmlText = document.getElementById('xml-editor').value;
+            const blob = new Blob([xmlText], { type: 'application/xml' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'processus_bpmn.bpmn';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Fichier sauvegardé sous le nom "processus_bpmn.bpmn"');
+        }
+
+        function loadFromFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xml,.bpmn';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    document.getElementById('xml-editor').value = event.target.result;
+                    formatXML();
+                    validateXML();
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        function showOutput(type) {
+            // Mettre à jour les boutons
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Afficher la section correspondante
+            document.querySelectorAll('.output-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            document.getElementById(`${type}-output`).style.display = 'block';
+            
+            // Mettre à jour les données si nécessaire
+            if (type === 'elements') updateElements();
+            if (type === 'stats') updateStats();
+            if (type === 'preview') updatePreview();
+        }
+
+        function showSample(type) {
+            const modal = document.getElementById('sample-modal');
+            const select = document.getElementById('sample-select');
+            
+            if (type) {
+                select.value = type;
+                loadSample();
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('sample-modal').style.display = 'none';
+        }
+
+        function loadSample() {
+            const type = document.getElementById('sample-select').value;
+            let sample = '';
+            
+            switch(type) {
+                case 'basic':
+                    sample = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions>
+  <process id="ProcessSimple" name="Processus Simple">
+    <startEvent id="start" />
+    <task id="task1" name="Tâche 1" />
+    <endEvent id="end" />
+    <sequenceFlow id="flow1" sourceRef="start" targetRef="task1" />
+    <sequenceFlow id="flow2" sourceRef="task1" targetRef="end" />
+  </process>
+</definitions>`;
+                    break;
+                    
+                case 'complete':
+                    sample = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions>
+  <process id="GestionProjetComplet" name="Gestion de Projet Complet">
+    
+    <laneSet>
+      <lane id="chef_projet" name="Chef de projet">
+        <flowNodeRef>startEvent1</flowNodeRef>
+        <flowNodeRef>verifierRessources</flowNodeRef>
+        <flowNodeRef>validerPlans</flowNodeRef>
+        <flowNodeRef>validerProposition</flowNodeRef>
+        <flowNodeRef>gateway1</flowNodeRef>
+        <flowNodeRef>gateway2</flowNodeRef>
+      </lane>
+      <lane id="equipe_projet" name="Équipe projet">
+        <flowNodeRef>developperPlans</flowNodeRef>
+        <flowNodeRef>executerTaches</flowNodeRef>
+        <flowNodeRef>preparerProposition</flowNodeRef>
+        <flowNodeRef>retourExperience</flowNodeRef>
+      </lane>
+    </laneSet>
+    
+    <!-- Événements -->
+    <startEvent id="startEvent1" name="Nouvelle demande">
+      <outgoing>flow1</outgoing>
+    </startEvent>
+    <endEvent id="endSuccess" name="Projet terminé" />
+    <endEvent id="endAnnulation" name="Projet annulé" />
+    <endEvent id="endEchec" name="Projet perdu" />
+    
+    <!-- Tâches -->
+    <task id="verifierRessources" name="Vérifier disponibilité ressources">
+      <incoming>flow1</incoming>
+      <outgoing>flow2</outgoing>
+    </task>
+    
+    <task id="developperPlans" name="Développer sous-plans" isExecutable="true">
+      <incoming>flow3</incoming>
+      <outgoing>flow4</outgoing>
+      <multiInstanceLoopCharacteristics isSequential="false">
+        <loopCardinality>3</loopCardinality>
+      </multiInstanceLoopCharacteristics>
+    </task>
+    
+    <task id="validerPlans" name="Valider les sous-plans">
+      <incoming>flow4</incoming>
+      <outgoing>flow5</outgoing>
+    </task>
+    
+    <!-- Passerelles -->
+    <exclusiveGateway id="gateway1" name="Ressources disponibles ?">
+      <incoming>flow2</incoming>
+      <outgoing>flow3</outgoing>
+      <outgoing>flowWait</outgoing>
+    </exclusiveGateway>
+    
+    <exclusiveGateway id="gateway2" name="Plans validés ?">
+      <incoming>flow5</incoming>
+      <outgoing>flow6</outgoing>
+      <outgoing>flowAdjust</outgoing>
+      <outgoing>flowCancel</outgoing>
+    </exclusiveGateway>
+    
+    <!-- Flux -->
+    <sequenceFlow id="flow1" sourceRef="startEvent1" targetRef="verifierRessources" />
+    <sequenceFlow id="flow2" sourceRef="verifierRessources" targetRef="gateway1" />
+    <sequenceFlow id="flow3" sourceRef="gateway1" targetRef="developperPlans" name="Ressources disponibles" />
+    <sequenceFlow id="flow4" sourceRef="developperPlans" targetRef="validerPlans" />
+    <sequenceFlow id="flow5" sourceRef="validerPlans" targetRef="gateway2" />
+    <sequenceFlow id="flow6" sourceRef="gateway2" targetRef="endSuccess" name="Validation OK" />
+    <sequenceFlow id="flowAdjust" sourceRef="gateway2" targetRef="developperPlans" name="Réajustement nécessaire" />
+    <sequenceFlow id="flowCancel" sourceRef="gateway2" targetRef="endAnnulation" name="Annulation" />
+    
+    <sequenceFlow id="flowWait" sourceRef="gateway1" targetRef="endAnnulation" name="Ressources insuffisantes" />
+    
+  </process>
+</definitions>`;
+                    break;
+                    
+                case 'approval':
+                    sample = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions>
+  <process id="ProcessusApprobation" name="Processus d'Approbation">
+    <startEvent id="start" name="Demande soumise" />
+    <task id="review" name="Réviser la demande" />
+    <exclusiveGateway id="decision" name="Approuver ?" />
+    <task id="approve" name="Approuver la demande" />
+    <task id="reject" name="Rejeter la demande" />
+    <endEvent id="endApprove" name="Demande approuvée" />
+    <endEvent id="endReject" name="Demande rejetée" />
+    
+    <sequenceFlow id="flow1" sourceRef="start" targetRef="review" />
+    <sequenceFlow id="flow2" sourceRef="review" targetRef="decision" />
+    <sequenceFlow id="flow3" sourceRef="decision" targetRef="approve" name="Oui" />
+    <sequenceFlow id="flow4" sourceRef="decision" targetRef="reject" name="Non" />
+    <sequenceFlow id="flow5" sourceRef="approve" targetRef="endApprove" />
+    <sequenceFlow id="flow6" sourceRef="reject" targetRef="endReject" />
+  </process>
+</definitions>`;
+                    break;
+                    
+                case 'purchase':
+                    sample = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions>
+  <process id="ProcessusAchat" name="Processus d'Achat">
+    <startEvent id="start" name="Demande d'achat" />
+    <task id="createPO" name="Créer bon de commande" />
+    <parallelGateway id="fork" name="Début parallèle" />
+    <task id="approveFin" name="Approbation financière" />
+    <task id="approveTech" name="Approbation technique" />
+    <parallelGateway id="join" name="Fin parallèle" />
+    <task id="sendOrder" name="Envoyer commande" />
+    <endEvent id="end" name="Commande envoyée" />
+    
+    <sequenceFlow id="flow1" sourceRef="start" targetRef="createPO" />
+    <sequenceFlow id="flow2" sourceRef="createPO" targetRef="fork" />
+    <sequenceFlow id="flow3" sourceRef="fork" targetRef="approveFin" />
+    <sequenceFlow id="flow4" sourceRef="fork" targetRef="approveTech" />
+    <sequenceFlow id="flow5" sourceRef="approveFin" targetRef="join" />
+    <sequenceFlow id="flow6" sourceRef="approveTech" targetRef="join" />
+    <sequenceFlow id="flow7" sourceRef="join" targetRef="sendOrder" />
+    <sequenceFlow id="flow8" sourceRef="sendOrder" targetRef="end" />
+  </process>
+</definitions>`;
+                    break;
+            }
+            
+            document.getElementById('sample-content').textContent = sample;
+        }
+
+        function insertSample() {
+            const sample = document.getElementById('sample-content').textContent;
+            document.getElementById('xml-editor').value = sample;
+            formatXML();
+            closeModal();
+        }
+
+        function clearEditor() {
+            if (confirm('Voulez-vous vraiment effacer tout le contenu ?')) {
+                document.getElementById('xml-editor').value = '';
+                updatePreview();
+                updateStats();
+            }
+        }
+
+        // Fermer la modal en cliquant à l'extérieur
+        window.onclick = function(event) {
+            const modal = document.getElementById('sample-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        };
+
+        // Validation automatique lors de la frappe (avec délai)
+        let typingTimer;
+        const editor = document.getElementById('xml-editor');
+        
+        editor.addEventListener('input', function() {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(function() {
+                updatePreview();
+                updateStats();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
